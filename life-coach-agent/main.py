@@ -1,27 +1,41 @@
 import dotenv
 
 dotenv.load_dotenv()
+import os
 import asyncio
 import streamlit as st
-from agents import Agent, Runner, SQLiteSession, WebSearchTool
+from agents import Agent, Runner, SQLiteSession, WebSearchTool, FileSearchTool
+
+VECTOR_STORE_ID = os.getenv("OPENAI_VECTOR_STORE_ID")
 
 if "agent" not in st.session_state:
+    tools = [WebSearchTool()]
+    if VECTOR_STORE_ID:
+        tools.append(
+            FileSearchTool(
+                max_num_results=5,
+                vector_store_ids=[VECTOR_STORE_ID],
+            )
+        )
+
     st.session_state["agent"] = Agent(
         name="ChatGPT Clone",
         model="gpt-4o",
         instructions="""
-        You are a helpful assistant.
+        당신은 도움이 되는 어시스턴트입니다.
 
-        You can use a web search tool to find and summarize:
-        - motivation and inspirational content
-        - self-development tips
-        - habit formation and behavior change advice
+        다음과 같은 내용을 찾고 요약하기 위해 웹 검색 도구를 사용할 수 있습니다:
+        - 동기부여 및 영감을 주는 콘텐츠
+        - 자기계발 팁
+        - 습관 형성과 행동 변화에 대한 조언
 
-        Prefer Korean when replying to the user.
+        또한 사용자가 업로드한 문서를 검색하기 위해
+        OpenAI Vector Store 기반의 파일 검색 도구가 설정되어 있다면
+        이를 사용하여 문서를 검색할 수 있습니다.
+
+        사용자에게 답변할 때는 한국어를 우선적으로 사용하세요.
         """,
-        tools=[
-            WebSearchTool(),
-        ],
+        tools=tools,
     )
 agent = st.session_state["agent"]
 
@@ -99,16 +113,6 @@ async def run_agent(message):
                     _update_ui()
 
 
-prompt = st.chat_input("Write a message for your assistant")
+from ui import render_app
 
-if prompt:
-    with st.chat_message("human"):
-        st.write(prompt)
-    asyncio.run(run_agent(prompt))
-
-
-with st.sidebar:
-    reset = st.button("Reset memory")
-    if reset:
-        asyncio.run(session.clear_session())
-    st.write(asyncio.run(session.get_items()))
+render_app(run_agent, session)
