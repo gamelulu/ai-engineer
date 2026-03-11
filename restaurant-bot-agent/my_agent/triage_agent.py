@@ -2,73 +2,15 @@ import streamlit as st
 from agents import (
     Agent,
     RunContextWrapper,
-    input_guardrail,
-    Runner,
-    GuardrailFunctionOutput,
     handoff,
 )
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from agents.extensions import handoff_filters
-from models import UserAccountContext, InputGuardRailOutput, HandoffData
-
+from models import UserAccountContext, HandoffData
 from my_agent.menu_agent import menu_agent
 from my_agent.order_agent import order_agent
 from my_agent.reservation_agent import reservation_agent
-
-input_guardrail_agent = Agent(
-    name="Input Guardrail Agent",
-    instructions="""
-    당신은 레스토랑 고객 지원 전문 에이전트입니다.
-
-    허용된 지원 범위는 다음 3가지입니다:
-    1. 메뉴 및 재료/알레르기 관련 문의 (Menu & Ingredients & Allergy)
-    2. 음식 주문 및 변경/취소 관련 문의 (Food Order)
-    3. 테이블 예약 및 변경/취소 관련 문의 (Table Reservation)
-
-    대화 시작 시:
-    - 짧고 친절한 인사 및 간단한 스몰토크는 허용됩니다.
-    - 예: "안녕하세요! 무엇을 도와드릴까요?" 정도는 가능합니다.
-
-    요청 처리 규칙:
-    - 사용자의 요청이 위 3가지 범위 중 하나에 해당하면 정상적으로 지원을 진행하세요.
-    - 사용자의 요청이 범위를 벗어나면, 해당 요청에는 **절대 도움을 제공하지 마세요.**
-
-    오프 토픽(off-topic) 요청 처리 방식:
-    - 정중하게 지원 불가함을 알립니다.
-    - 왜 해당 요청이 범위를 벗어났는지 간단한 이유(tripwire reason)를 제공합니다.
-    - 가능한 경우, 지원 가능한 범위로 대화를 유도합니다.
-
-    오프 토픽 응답 형식 예시:
-
-    "죄송하지만 해당 요청은 레스토랑의 메뉴, 주문, 또는 예약 범위에 해당하지 않아 도움을 드릴 수 없습니다.
-    (사유: 요청 내용이 레스토랑 업무 범위를 벗어난 일반 정보/개인 상담/기타 요청이기 때문입니다)
-
-    메뉴, 주문, 예약 중에서 도움이 필요하신 사항이 있다면 알려주세요."
-
-    중요:
-    - 오프 토픽 요청에 대해 해결 방법, 코드, 설명, 조언 등을 제공하지 마세요.
-    - 항상 정중하고 친절한 톤을 유지하세요.
-    """,
-    output_type=InputGuardRailOutput,
-)
-
-
-@input_guardrail
-async def off_topic_guardrail(
-    wrapper: RunContextWrapper[UserAccountContext],
-    agent: Agent[UserAccountContext],
-    input: str,
-):
-    result = await Runner.run(
-        input_guardrail_agent,
-        input,
-        context=wrapper.context,
-    )
-
-    return GuardrailFunctionOutput(
-        output_info=result.final_output,  # reason 반환
-        tripwire_triggered=result.final_output.is_off_topic,  # is_off_topic 반환
-    )
+from my_agent.complaints_agent import complaints_agent
 
 
 def dynamic_triage_agent_instructions(
@@ -117,6 +59,14 @@ def dynamic_triage_agent_instructions(
     - 예약 변경, 취소
     - 예: "토요일 저녁 7시에 두 명 예약할 수 있나요?", "오늘 4명 자리 있나요?"
 
+    😤 불만 상담 (Complaints) – 다음에 해당하면 이쪽으로 연결:
+    - 음식 품질 불만 (맛, 온도, 양, 이물질 등)
+    - 서비스 불만 (직원 태도, 응대 지연 등)
+    - 대기 시간 불만
+    - 위생 문제
+    - 환불, 보상, 매니저 연결 요청
+    - 예: "음식이 차갑게 나왔어요", "직원이 불친절해요", "환불해주세요", "매니저 불러주세요"
+
     ---
 
     문제 분류 절차:
@@ -162,18 +112,10 @@ def make_handoff(agent):
 triage_agent = Agent(
     name="Triage Agent",
     instructions=dynamic_triage_agent_instructions,
-    # input_guardrails=[
-    #     off_topic_guardrail,  # triage_agent가 실행 되기전에 input_guardrail_agent를 실행하여 오프토픽 여부를 확인한다
-    # ],
-    # tools=[
-    #     technical_agent.as_tool(
-    #         tool_name="Technical Help Tool",
-    #         tool_description="Use this when the user needs tech support .",
-    #     ),
-    # ],
     handoffs=[
         make_handoff(menu_agent),
         make_handoff(order_agent),
         make_handoff(reservation_agent),
+        make_handoff(complaints_agent),
     ],
 )

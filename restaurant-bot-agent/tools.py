@@ -312,6 +312,91 @@ def cancel_reservation(
     """.strip()
 
 
+# =============================================================================
+# RESTAURANT - COMPLAINTS TOOLS
+# =============================================================================
+@function_tool
+def log_complaint(
+    context: UserAccountContext,
+    complaint_type: str,
+    description: str,
+    severity: str = "medium",
+) -> str:
+    """
+    고객 불만 사항을 접수하고 기록합니다.
+
+    Args:
+        complaint_type: 불만 유형 (food_quality, service, wait_time, hygiene, other)
+        description: 불만 상세 내용
+        severity: 심각도 (low, medium, high, critical)
+    """
+    complaint_id = f"CMP-{random.randint(10000, 99999)}"
+    return f"""
+    📝 불만 사항이 접수되었습니다
+    🔗 접수 번호: {complaint_id}
+    📂 유형: {complaint_type}
+    ⚡ 심각도: {severity.upper()}
+    📝 내용: {description}
+    👤 고객: {context.name}
+    """.strip()
+
+
+@function_tool
+def offer_compensation(
+    context: UserAccountContext,
+    compensation_type: str,
+    details: str = "",
+) -> str:
+    """
+    고객에게 보상을 제안합니다 (환불, 할인, 무료 제공 등).
+
+    Args:
+        compensation_type: 보상 유형 (refund, discount, free_item, voucher)
+        details: 보상 상세 내용 (예: "디저트 무료 제공", "10% 할인 쿠폰")
+    """
+    comp_id = f"COMP-{random.randint(10000, 99999)}"
+    type_labels = {
+        "refund": "환불",
+        "discount": "할인 쿠폰",
+        "free_item": "무료 메뉴 제공",
+        "voucher": "이용권 발급",
+    }
+    label = type_labels.get(compensation_type, compensation_type)
+    return f"""
+    🎁 보상이 제안되었습니다
+    🔗 보상 번호: {comp_id}
+    📋 보상 유형: {label}
+    📝 상세: {details if details else label}
+    👤 고객: {context.name}
+    ✅ 고객 동의 후 적용됩니다.
+    """.strip()
+
+
+@function_tool
+def escalate_to_manager(
+    context: UserAccountContext,
+    issue_summary: str,
+    urgency: str = "normal",
+) -> str:
+    """
+    심각한 불만 사항을 매니저에게 에스컬레이션합니다.
+
+    Args:
+        issue_summary: 문제 요약
+        urgency: 긴급도 (normal, urgent, critical)
+    """
+    ticket_id = f"ESC-{random.randint(10000, 99999)}"
+    callback_time = "30분" if urgency == "critical" else "1시간" if urgency == "urgent" else "2시간"
+    return f"""
+    🚨 매니저 에스컬레이션 완료
+    🔗 티켓 번호: {ticket_id}
+    ⚡ 긴급도: {urgency.upper()}
+    📝 요약: {issue_summary}
+    👤 고객: {context.name}
+    📞 매니저 콜백 예상 시간: {callback_time} 이내
+    """.strip()
+
+
 class AgentToolUsageLoggingHooks(AgentHooks):
 
     async def on_tool_start(

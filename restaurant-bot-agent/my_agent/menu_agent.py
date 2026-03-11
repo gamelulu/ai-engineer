@@ -6,6 +6,7 @@ from tools import (
     check_allergy,
     AgentToolUsageLoggingHooks,
 )
+from output_guardrails import restaurant_output_guardrail
 
 
 def dynamic_menu_agent_instructions(
@@ -49,4 +50,5 @@ menu_agent = Agent(
         check_allergy,
     ],
     hooks=AgentToolUsageLoggingHooks(),
+    output_guardrails=[restaurant_output_guardrail],
 )

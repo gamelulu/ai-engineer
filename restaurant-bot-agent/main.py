@@ -4,13 +4,13 @@ import dotenv
 import streamlit as st
 
 from agents import (
-    InputGuardrailTripwireTriggered,
     OutputGuardrailTripwireTriggered,
     Runner,
     SQLiteSession,
 )
 from models import UserAccountContext
 from my_agent.triage_agent import triage_agent
+from input_guardrails import input_guardrail_agent
 
 
 dotenv.load_dotenv()
@@ -46,8 +46,38 @@ async def paint_history():
                         st.write(message["content"][0]["text"].replace("$", "\\$"))
 
 
+async def check_input_guardrail(message: str) -> bool:
+    """LLM 호출 전에 입력을 먼저 검사합니다. off-topic이면 True를 반환합니다."""
+    result = await Runner.run(
+        input_guardrail_agent,
+        message,
+        context=user_account_ctx,
+    )
+    return result.final_output.is_off_topic
+
+
+GUARDRAIL_BLOCKED_MESSAGE = "죄송합니다. 레스토랑 메뉴, 주문, 예약, 불만 접수 외의 질문에는 도움을 드릴 수 없습니다."
+
+
 async def run_agent(message: str):
     with st.chat_message("ai"):
+        is_off_topic = await check_input_guardrail(message)
+        if is_off_topic:
+            st.write(GUARDRAIL_BLOCKED_MESSAGE)
+            await session.add_items(
+                [
+                    {"role": "user", "content": message},
+                    {
+                        "role": "assistant",
+                        "type": "message",
+                        "content": [
+                            {"type": "output_text", "text": GUARDRAIL_BLOCKED_MESSAGE}
+                        ],
+                    },
+                ]
+            )
+            return
+
         text_placeholder = st.empty()
         response = ""
 
@@ -58,7 +88,7 @@ async def run_agent(message: str):
                 st.session_state["agent"],
                 message,
                 session=session,
-                context=user_account_ctx,  # 모든 function tool에 전달되는 context
+                context=user_account_ctx,
             )
 
             async for event in stream.stream_events():
@@ -75,11 +105,9 @@ async def run_agent(message: str):
                         text_placeholder = st.empty()
                         st.session_state["text_placeholder"] = text_placeholder
                         response = ""
-        except InputGuardrailTripwireTriggered:
-            st.write("I can't help you with that.")
         except OutputGuardrailTripwireTriggered:
-            st.write("Cant show you that answer.")
-            st.session_state["text_placeholder"].empty()
+            text_placeholder.empty()
+            st.write("죄송합니다. 해당 응답을 표시할 수 없습니다.")
 
 
 # 이전 대화 이력 렌더링

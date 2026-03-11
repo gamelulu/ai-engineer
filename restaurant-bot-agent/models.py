@@ -19,3 +19,9 @@ class HandoffData(BaseModel):
     issue_type: str
     issue_description: str
     reason: str
+
+
+class RestaurantOutputGuardRailOutput(BaseModel):
+    is_unprofessional: bool
+    exposes_internal_info: bool
+    reason: str

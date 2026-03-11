@@ -6,6 +6,7 @@ from tools import (
     confirm_restaurant_order,
     AgentToolUsageLoggingHooks,
 )
+from output_guardrails import restaurant_output_guardrail
 
 
 def dynamic_order_agent_instructions(
@@ -47,4 +48,5 @@ order_agent = Agent(
         confirm_restaurant_order,
     ],
     hooks=AgentToolUsageLoggingHooks(),
+    output_guardrails=[restaurant_output_guardrail],
 )
