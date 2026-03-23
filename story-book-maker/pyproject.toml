@@ -9,4 +9,6 @@ dependencies = [
     "google-genai>=1.59.0",
     "litellm>=1.81.0",
     "openai>=2.15.0",
+    "pillow>=12.1.1",
+    "pydantic>=2.12.5",
 ]
